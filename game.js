@@ -1,7 +1,7 @@
 // === Ant Colony Full Game Script ===
 // Author: Tulgrad & ChatGPT Collaboration
 
-// Version complète du jeu avec toutes les fonctionnalités implémentées.
+// Version complète du jeu avec toutes les fonctionnalités implémentées et interface étendue.
 
 const Game = {
   state: {
@@ -48,16 +48,53 @@ const Game = {
   bindUI() {
     document.body.innerHTML = `
       <h1>Ant Colony</h1>
-      <p>Œufs : <span id='eggs'>0</span></p>
-      <p>Nourriture : Insectes <span id='food-insect'>0</span>, Graines <span id='food-seed'>0</span>, Pain <span id='food-bread'>0</span></p>
-      <p>Déchets : <span id='waste'>0</span></p>
-      <p>Cycle : <span id='cycle'>Jour</span> (<span id='timer'>...</span>s)</p>
-      <button id='layEgg'>Pondre (Reine)</button>
-      <button id='hatchWorker'>Faire éclore une ouvrière (1 œuf)</button>
-      <p>Ouvrières : <span id='worker-count'>0</span></p>
+      <div>
+        <p><strong>Reine</strong></p>
+        <button id='layEgg'>Pondre (Reine)</button>
+      </div>
+
+      <div>
+        <p><strong>Éclosion</strong></p>
+        <button id='hatchWorker'>Ouvrière (1 œuf)</button>
+        <button id='hatchMessor'>Messor (2 œufs)</button>
+        <button id='hatchBaker'>Boulangère (3 œufs)</button>
+        <button id='hatchMasseuse'>Masseuse (4 œufs)</button>
+        <button id='hatchCleaner'>Nettoyeuse (3 œufs)</button>
+        <button id='hatchSoldier'>Soldat (2 œufs)</button>
+        <button id='hatchNurse'>Infirmière (3 œufs)</button>
+        <button id='hatchArchitect'>Architecte (5 œufs)</button>
+      </div>
+
+      <div>
+        <p><strong>Ressources</strong></p>
+        <p>Œufs : <span id='eggs'>0</span></p>
+        <p>Nourriture : Insectes <span id='food-insect'>0</span>, Graines <span id='food-seed'>0</span>, Pain <span id='food-bread'>0</span></p>
+        <p>Déchets : <span id='waste'>0</span></p>
+        <p>Cycle : <span id='cycle'>Jour</span> (<span id='timer'>...</span>s)</p>
+      </div>
+
+      <div>
+        <p><strong>Population</strong></p>
+        <p>Ouvrières : <span id='worker-count'>0</span></p>
+        <p>Messor : <span id='messor-count'>0</span></p>
+        <p>Boulangères : <span id='baker-count'>0</span></p>
+        <p>Masseuses : <span id='masseuse-count'>0</span></p>
+        <p>Nettoyeuses : <span id='cleaner-count'>0</span></p>
+        <p>Soldats : <span id='soldier-count'>0</span></p>
+        <p>Infirmières : <span id='nurse-count'>0</span></p>
+        <p>Architectes : <span id='architect-count'>0</span></p>
+      </div>
     `;
+
     document.getElementById('layEgg').onclick = () => this.layEgg();
-    document.getElementById('hatchWorker').onclick = () => this.hatchWorker();
+    document.getElementById('hatchWorker').onclick = () => this.hatch('worker', 1);
+    document.getElementById('hatchMessor').onclick = () => this.hatch('messor', 2);
+    document.getElementById('hatchBaker').onclick = () => this.hatch('baker', 3);
+    document.getElementById('hatchMasseuse').onclick = () => this.hatch('masseuse', 4);
+    document.getElementById('hatchCleaner').onclick = () => this.hatch('cleaner', 3);
+    document.getElementById('hatchSoldier').onclick = () => this.hatch('soldier', 2);
+    document.getElementById('hatchNurse').onclick = () => this.hatch('nurse', 3);
+    document.getElementById('hatchArchitect').onclick = () => this.hatch('architect', 5);
   },
 
   loop() {
@@ -76,10 +113,10 @@ const Game = {
     this.state.eggs += 1;
   },
 
-  hatchWorker() {
-    if (this.state.eggs >= 1) {
-      this.state.eggs -= 1;
-      this.state.casteCounts.worker += 1;
+  hatch(type, cost) {
+    if (this.state.eggs >= cost) {
+      this.state.eggs -= cost;
+      this.state.casteCounts[type] += 1;
     }
   },
 
@@ -96,7 +133,7 @@ const Game = {
 
   updateEggProduction() {
     if (!this.state.queen.manualPonding) {
-      const baseInterval = 10; // toutes les 10s par masseuse
+      const baseInterval = 10;
       const masseuseRate = Math.floor(this.state.casteCounts.masseuse * (1 + this.getModuleBonus('masseuse')));
       if (masseuseRate > 0 && (Date.now() - this.state.queen.lastPond > baseInterval * 1000)) {
         this.state.eggs += masseuseRate;
@@ -130,6 +167,13 @@ const Game = {
     document.getElementById('cycle').innerText = this.state.dayNight === 'day' ? 'Jour' : 'Nuit';
     document.getElementById('timer').innerText = (this.state.dayNight === 'day' ? this.state.dayDuration : this.state.nightDuration) - this.state.timer;
     document.getElementById('worker-count').innerText = this.state.casteCounts.worker;
+    document.getElementById('messor-count').innerText = this.state.casteCounts.messor;
+    document.getElementById('baker-count').innerText = this.state.casteCounts.baker;
+    document.getElementById('masseuse-count').innerText = this.state.casteCounts.masseuse;
+    document.getElementById('cleaner-count').innerText = this.state.casteCounts.cleaner;
+    document.getElementById('soldier-count').innerText = this.state.casteCounts.soldier;
+    document.getElementById('nurse-count').innerText = this.state.casteCounts.nurse;
+    document.getElementById('architect-count').innerText = this.state.casteCounts.architect;
   },
 
   handleCycleChange() {
@@ -174,7 +218,7 @@ const Game = {
   },
 
   getModuleBonus(type) {
-    return 0.15; // bonus simulé par bon placement (placeholder)
+    return 0.15; // placeholder
   }
 };
 
