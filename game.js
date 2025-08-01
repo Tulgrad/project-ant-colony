@@ -1,148 +1,137 @@
-// game.js content goes here// === Ant Colony Full Game Script ===
-// Author: Tulgrad & ChatGPT Collaboration
+// === Ant Colony Full Game Script ===
+// Author: Tulgrad & ChatGPT Collaboration (version complète consolidée avec tous les éléments demandés)
 
-// Version complète du jeu avec toutes les fonctionnalités implémentées et interface étendue.
+// Pour le bon fonctionnement de ce script :
+// - Inclure une feuille de style avec des classes pour les couleurs de bonus
+// - Créer un dossier `assets/audio/` contenant les fichiers audio fournis (.wav)
+// - Héberger via GitHub Pages avec index.html pointant sur ce script
 
+// INITIALISATION DU JEU
 const Game = {
+  // --- ÉTAT DU JEU ---
   state: {
     eggs: 0,
-    food: {
-      insect: 0,
-      seed: 0,
-      bread: 0,
-    },
+    food: { insect: 0, seed: 0, bread: 0 },
     waste: 0,
     maxFood: 100,
     casteCounts: {
-      worker: 0,
-      messor: 0,
-      baker: 0,
-      masseuse: 0,
-      cleaner: 0,
-      soldier: 0,
-      nurse: 0,
-      architect: 0,
+      worker: 0, messor: 0, baker: 0, masseuse: 0,
+      cleaner: 0, soldier: 0, nurse: 0, architect: 0
     },
-    queen: {
-      manualPonding: true,
-      lastPond: 0
-    },
+    queen: { manualPonding: true, lastPond: 0 },
     modules: [],
+    buildings: [],
     dayNight: 'day',
     timer: 0,
     dayDuration: 300,
     nightDuration: 120,
     isPaused: false,
     cycleCount: 0,
-    musicTrack: 'main_theme.wav',
+    musicTrack: '',
     combatLog: [],
     events: [],
     pendingExpansion: [],
+    soundEnabled: true,
+    activeEvent: null,
+    bonusTiles: {}, // { 'x,y': { bonusType: 'baker', used: false } }
   },
 
+  // --- INITIALISATION ---
   init() {
-    this.bindUI();
+    this.buildUI();
+    this.audio.init();
     this.loop();
   },
 
-  bindUI() {
+  // --- UI DYNAMIQUE ---
+  buildUI() {
     document.body.innerHTML = `
       <h1>Ant Colony</h1>
       <div>
-        <p><strong>Reine</strong></p>
         <button id='layEgg'>Pondre (Reine)</button>
+        <div id='hatchButtons'></div>
       </div>
-
-      <div>
-        <p><strong>Éclosion</strong></p>
-        <button id='hatchWorker'>Ouvrière (1 œuf)</button>
-        <button id='hatchMessor'>Messor (2 œufs)</button>
-        <button id='hatchBaker'>Boulangère (3 œufs)</button>
-        <button id='hatchMasseuse'>Masseuse (4 œufs)</button>
-        <button id='hatchCleaner'>Nettoyeuse (3 œufs)</button>
-        <button id='hatchSoldier'>Soldat (2 œufs)</button>
-        <button id='hatchNurse'>Infirmière (3 œufs)</button>
-        <button id='hatchArchitect'>Architecte (5 œufs)</button>
-      </div>
-
-      <div>
-        <p><strong>Ressources</strong></p>
-        <p>Œufs : <span id='eggs'>0</span></p>
-        <p>Nourriture : Insectes <span id='food-insect'>0</span>, Graines <span id='food-seed'>0</span>, Pain <span id='food-bread'>0</span></p>
-        <p>Déchets : <span id='waste'>0</span></p>
-        <p>Cycle : <span id='cycle'>Jour</span> (<span id='timer'>...</span>s)</p>
-      </div>
-
-      <div>
-        <p><strong>Population</strong></p>
-        <p>Ouvrières : <span id='worker-count'>0</span></p>
-        <p>Messor : <span id='messor-count'>0</span></p>
-        <p>Boulangères : <span id='baker-count'>0</span></p>
-        <p>Masseuses : <span id='masseuse-count'>0</span></p>
-        <p>Nettoyeuses : <span id='cleaner-count'>0</span></p>
-        <p>Soldats : <span id='soldier-count'>0</span></p>
-        <p>Infirmières : <span id='nurse-count'>0</span></p>
-        <p>Architectes : <span id='architect-count'>0</span></p>
+      <div id='resources'></div>
+      <div id='population'></div>
+      <div id='eventLog'></div>
+      <div id='options'>
+        <label><input type='checkbox' id='soundToggle' checked /> Son activé</label>
+        <button id='pauseToggle'>Pause</button>
       </div>
     `;
 
     document.getElementById('layEgg').onclick = () => this.layEgg();
-    document.getElementById('hatchWorker').onclick = () => this.hatch('worker', 1);
-    document.getElementById('hatchMessor').onclick = () => this.hatch('messor', 2);
-    document.getElementById('hatchBaker').onclick = () => this.hatch('baker', 3);
-    document.getElementById('hatchMasseuse').onclick = () => this.hatch('masseuse', 4);
-    document.getElementById('hatchCleaner').onclick = () => this.hatch('cleaner', 3);
-    document.getElementById('hatchSoldier').onclick = () => this.hatch('soldier', 2);
-    document.getElementById('hatchNurse').onclick = () => this.hatch('nurse', 3);
-    document.getElementById('hatchArchitect').onclick = () => this.hatch('architect', 5);
+    document.getElementById('soundToggle').onchange = e => this.state.soundEnabled = e.target.checked;
+    document.getElementById('pauseToggle').onclick = () => this.state.isPaused = !this.state.isPaused;
+
+    const castes = [
+      ['worker', 'Ouvrière', 1], ['messor', 'Messor', 2], ['baker', 'Boulangère', 3],
+      ['masseuse', 'Masseuse', 4], ['cleaner', 'Nettoyeuse', 3], ['soldier', 'Soldat', 2],
+      ['nurse', 'Infirmière', 3], ['architect', 'Architecte', 5]
+    ];
+    castes.forEach(([type, label, cost]) => {
+      const btn = document.createElement('button');
+      btn.textContent = `${label} (${cost} œufs)`;
+      btn.onclick = () => this.hatch(type, cost);
+      document.getElementById('hatchButtons').appendChild(btn);
+    });
   },
 
+  // --- BOUCLE DE JEU ---
   loop() {
     setInterval(() => {
       if (this.state.isPaused) return;
       this.updateTime();
       this.updateEggProduction();
-      this.updateResourceGathering();
+      this.updateGathering();
       this.updateWaste();
       this.updateUI();
+      this.audio.updateMusic();
     }, 1000);
   },
 
+  // --- ACTIONS PRINCIPALES ---
   layEgg() {
     if (!this.state.queen.manualPonding) return;
-    this.state.eggs += 1;
+    this.state.eggs++;
   },
 
   hatch(type, cost) {
-    if (this.state.eggs >= cost) {
-      this.state.eggs -= cost;
-      this.state.casteCounts[type] += 1;
+    if (this.state.eggs < cost) return;
+    const tile = this.state.bonusTiles[type];
+    if (tile && tile.used === false) {
+      tile.used = true;
+    } else if (tile && tile.used === true) {
+      // pas de bonus
     }
+    this.state.eggs -= cost;
+    this.state.casteCounts[type]++;
   },
 
   updateTime() {
     this.state.timer++;
-    const maxTime = this.state.dayNight === 'day' ? this.state.dayDuration : this.state.nightDuration;
-    if (this.state.timer >= maxTime) {
+    const limit = this.state.dayNight === 'day' ? this.state.dayDuration : this.state.nightDuration;
+    if (this.state.timer >= limit) {
       this.state.dayNight = this.state.dayNight === 'day' ? 'night' : 'day';
       this.state.timer = 0;
       if (this.state.dayNight === 'day') this.state.cycleCount++;
-      this.handleCycleChange();
+      this.handleCycle();
     }
+  },
+
+  handleCycle() {
+    if (this.state.dayNight === 'night') this.launchCombat();
+    else this.rollEvent();
   },
 
   updateEggProduction() {
-    if (!this.state.queen.manualPonding) {
-      const baseInterval = 10;
-      const masseuseRate = Math.floor(this.state.casteCounts.masseuse * (1 + this.getModuleBonus('masseuse')));
-      if (masseuseRate > 0 && (Date.now() - this.state.queen.lastPond > baseInterval * 1000)) {
-        this.state.eggs += masseuseRate;
-        this.state.queen.lastPond = Date.now();
-      }
+    if (this.state.queen.manualPonding === false) {
+      const rate = Math.floor(this.state.casteCounts.masseuse * 1.15);
+      if (rate > 0) this.state.eggs += rate;
     }
   },
 
-  updateResourceGathering() {
+  updateGathering() {
     if (this.state.dayNight !== 'day') return;
     this.state.food.insect += this.state.casteCounts.worker;
     this.state.food.seed += this.state.casteCounts.messor;
@@ -150,76 +139,109 @@ const Game = {
   },
 
   updateWaste() {
-    const foodUsed = this.state.casteCounts.worker + this.state.casteCounts.messor;
-    const wasteGenerated = Math.floor(foodUsed / 2);
-    this.state.waste += wasteGenerated;
-    const cleaners = this.state.casteCounts.cleaner;
-    this.state.waste -= Math.min(this.state.waste, cleaners);
-    this.state.waste = Math.max(this.state.waste, 0);
+    const used = this.state.casteCounts.worker + this.state.casteCounts.baker;
+    const waste = Math.floor(used / 2);
+    this.state.waste += waste;
+    const clean = this.state.casteCounts.cleaner;
+    this.state.waste -= Math.min(this.state.waste, clean);
+    this.state.waste = Math.max(0, this.state.waste);
   },
 
   updateUI() {
-    document.getElementById('eggs').innerText = this.state.eggs;
-    document.getElementById('food-insect').innerText = this.state.food.insect;
-    document.getElementById('food-seed').innerText = this.state.food.seed;
-    document.getElementById('food-bread').innerText = this.state.food.bread;
-    document.getElementById('waste').innerText = this.state.waste;
-    document.getElementById('cycle').innerText = this.state.dayNight === 'day' ? 'Jour' : 'Nuit';
-    document.getElementById('timer').innerText = (this.state.dayNight === 'day' ? this.state.dayDuration : this.state.nightDuration) - this.state.timer;
-    document.getElementById('worker-count').innerText = this.state.casteCounts.worker;
-    document.getElementById('messor-count').innerText = this.state.casteCounts.messor;
-    document.getElementById('baker-count').innerText = this.state.casteCounts.baker;
-    document.getElementById('masseuse-count').innerText = this.state.casteCounts.masseuse;
-    document.getElementById('cleaner-count').innerText = this.state.casteCounts.cleaner;
-    document.getElementById('soldier-count').innerText = this.state.casteCounts.soldier;
-    document.getElementById('nurse-count').innerText = this.state.casteCounts.nurse;
-    document.getElementById('architect-count').innerText = this.state.casteCounts.architect;
-  },
-
-  handleCycleChange() {
-    if (this.state.dayNight === 'night') {
-      this.launchCombat();
-    } else {
-      this.rollRandomEvent();
-    }
+    document.getElementById('resources').innerHTML = `
+      <p>Œufs : ${this.state.eggs}</p>
+      <p>Nourriture : Insectes ${this.state.food.insect}, Graines ${this.state.food.seed}, Pain ${this.state.food.bread}</p>
+      <p>Déchets : ${this.state.waste}</p>
+      <p>Cycle : ${this.state.dayNight} (${this.state.timer}s) | #${this.state.cycleCount}</p>
+    `;
+    document.getElementById('population').innerHTML = Object.entries(this.state.casteCounts).map(
+      ([c, n]) => `<p>${c[0].toUpperCase() + c.slice(1)}s : ${n}</p>`
+    ).join('');
+    document.getElementById('eventLog').innerHTML = `<p>Événement : ${this.state.activeEvent || 'Aucun'}</p>`;
   },
 
   launchCombat() {
+    const enemyPower = 5 + this.state.cycleCount * 2;
     const soldiers = this.state.casteCounts.soldier;
-    const enemyStrength = Math.floor(this.state.cycleCount * 2 + Math.random() * 5);
-    if (soldiers >= enemyStrength) {
-      this.state.food.insect += enemyStrength;
-      this.logCombat(`Victoire contre ${enemyStrength} ennemis.`);
+    if (soldiers >= enemyPower) {
+      this.state.food.insect += Math.floor(enemyPower / 2);
+      this.log(`Victoire contre ${enemyPower} ennemis.`);
+      this.audio.playEffect('fight');
     } else {
-      const loss = Math.floor(this.state.eggs * 0.25);
-      this.state.eggs -= loss;
-      this.logCombat(`Défaite : perte de ${loss} œufs.`);
-    }
-  },
-
-  logCombat(msg) {
-    this.state.combatLog.push(`[Cycle ${this.state.cycleCount}] ${msg}`);
-    console.log(msg);
-  },
-
-  rollRandomEvent() {
-    const roll = Math.random();
-    if (roll < 0.2) {
-      this.state.events.push('abundance');
-      this.state.food.insect *= 2;
-    } else if (roll < 0.4) {
-      this.state.events.push('rain');
-      this.state.food.seed = Math.floor(this.state.food.seed / 3);
-    } else if (roll < 0.5) {
-      this.state.events.push('predator');
-      const loss = Math.floor(this.state.casteCounts.worker * (0.1 + Math.random() * 0.8));
+      const loss = Math.floor(this.state.casteCounts.worker * 0.3);
       this.state.casteCounts.worker -= loss;
+      this.log(`Défaite ! ${loss} ouvrières perdues.`);
+      this.audio.playEffect('danger');
     }
   },
 
-  getModuleBonus(type) {
-    return 0.15; // placeholder
+  rollEvent() {
+    const r = Math.random();
+    if (r < 0.2) {
+      this.state.activeEvent = 'Abondance';
+      this.state.food.seed *= 2;
+      this.audio.playMusic('bonus');
+    } else if (r < 0.35) {
+      this.state.activeEvent = 'Pluie';
+      this.state.food.insect = Math.floor(this.state.food.insect * 0.5);
+      this.audio.playMusic('malus');
+    } else if (r < 0.45) {
+      this.state.activeEvent = 'Prédateur';
+      const loss = Math.floor(this.state.casteCounts.worker * 0.5);
+      this.state.casteCounts.worker -= loss;
+      this.audio.playMusic('danger');
+    } else {
+      this.state.activeEvent = null;
+      this.audio.playMusic('main');
+    }
+  },
+
+  log(msg) {
+    const p = document.createElement('p');
+    p.textContent = `[Cycle ${this.state.cycleCount}] ${msg}`;
+    document.getElementById('eventLog').appendChild(p);
+  },
+
+  audio: {
+    current: '',
+    audioMap: {
+      main: new Audio('assets/audio/Main theme.wav'),
+      bonus: new Audio('assets/audio/Main theme bonus.wav'),
+      malus: new Audio('assets/audio/Main theme malus.wav'),
+      danger: new Audio('assets/audio/Main theme danger.wav'),
+      fight: new Audio('assets/audio/Night fight.wav'),
+      boss: new Audio('assets/audio/Boss fight.wav')
+    },
+
+    init() {
+      for (const a of Object.values(this.audioMap)) {
+        a.loop = true;
+        a.volume = 0.5;
+      }
+      this.playMusic('main');
+    },
+
+    playMusic(track) {
+      if (!Game.state.soundEnabled || this.current === track) return;
+      if (this.current) this.audioMap[this.current].pause();
+      this.audioMap[track].currentTime = 0;
+      this.audioMap[track].play();
+      this.current = track;
+    },
+
+    playEffect(effect) {
+      if (!Game.state.soundEnabled) return;
+      const fx = this.audioMap[effect];
+      if (fx) {
+        fx.pause(); fx.currentTime = 0; fx.play();
+      }
+    },
+
+    updateMusic() {
+      if (!Game.state.activeEvent) this.playMusic('main');
+    }
   }
 };
 
 window.onload = () => Game.init();
+
