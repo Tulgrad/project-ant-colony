@@ -1,4 +1,3 @@
-
 // === Ant Colony Full Game Script ===
 // Author: Tulgrad & ChatGPT Collaboration
 
@@ -54,8 +53,11 @@ const Game = {
       <p>Déchets : <span id='waste'>0</span></p>
       <p>Cycle : <span id='cycle'>Jour</span> (<span id='timer'>...</span>s)</p>
       <button id='layEgg'>Pondre (Reine)</button>
+      <button id='hatchWorker'>Faire éclore une ouvrière (1 œuf)</button>
+      <p>Ouvrières : <span id='worker-count'>0</span></p>
     `;
     document.getElementById('layEgg').onclick = () => this.layEgg();
+    document.getElementById('hatchWorker').onclick = () => this.hatchWorker();
   },
 
   loop() {
@@ -72,6 +74,13 @@ const Game = {
   layEgg() {
     if (!this.state.queen.manualPonding) return;
     this.state.eggs += 1;
+  },
+
+  hatchWorker() {
+    if (this.state.eggs >= 1) {
+      this.state.eggs -= 1;
+      this.state.casteCounts.worker += 1;
+    }
   },
 
   updateTime() {
@@ -120,6 +129,7 @@ const Game = {
     document.getElementById('waste').innerText = this.state.waste;
     document.getElementById('cycle').innerText = this.state.dayNight === 'day' ? 'Jour' : 'Nuit';
     document.getElementById('timer').innerText = (this.state.dayNight === 'day' ? this.state.dayDuration : this.state.nightDuration) - this.state.timer;
+    document.getElementById('worker-count').innerText = this.state.casteCounts.worker;
   },
 
   handleCycleChange() {
